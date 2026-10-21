@@ -1,14 +1,25 @@
 spring:
+  main:
+    banner-mode: off
   application:
     name: marketplace-api
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/marketplace}
     username: ${DB_USER:marketplace}
-    password: ${DB_PASSWORD:marketplace}
+    password: ${DB_PASSWORD}
   jackson:
+    time-zone: UTC
     default-property-inclusion: non_null
     deserialization:
       fail-on-unknown-properties: true
 
 server:
   port: ${PORT:8080}
+
+logging:
+  structured:
+    format:
+      console: logstash
+
+order:
+  interval-minutes: ${ORDER_INTERVAL_MINUTES:1}
