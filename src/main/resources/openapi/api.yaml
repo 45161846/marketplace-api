@@ -176,6 +176,7 @@ components:
           minimum: 0.01
           maximum: 9999999999.99
           multipleOf: 0.01
+          x-field-extra-annotation: "@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)"
         stock:
           type: integer
           format: int32
@@ -204,6 +205,7 @@ components:
           minimum: 0.01
           maximum: 9999999999.99
           multipleOf: 0.01
+          x-field-extra-annotation: "@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)"
         stock:
           type: integer
           format: int32
@@ -235,6 +237,7 @@ components:
           minimum: 0.01
           maximum: 9999999999.99
           multipleOf: 0.01
+          x-field-extra-annotation: "@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)"
         stock:
           type: integer
           format: int32
