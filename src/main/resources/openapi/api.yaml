@@ -1,0 +1,250 @@
+openapi: 3.0.3
+info:
+  title: Marketplace API
+  version: 1.0.0
+  description: Каталог товаров маркетплейса.
+tags:
+  - name: Products
+    description: Товары каталога.
+paths:
+  /products:
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Создать товар
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Товар создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Некорректные данные товара.
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: Получить список товаров
+      description: Без фильтра возвращаются товары всех статусов. Сортировка по времени создания и ID.
+      parameters:
+        - name: page
+          in: query
+          description: Номер страницы, начиная с нуля.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: Размер страницы.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Статус товара.
+          schema:
+            $ref: '#/components/schemas/ProductStatus'
+        - name: category
+          in: query
+          description: Категория, точное совпадение.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Страница товаров.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '400':
+          description: Некорректные параметры списка.
+  /products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID товара.
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Получить товар
+      responses:
+        '200':
+          description: Товар найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Некорректный ID товара.
+        '404':
+          description: Товар не найден.
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Обновить товар
+      description: Полностью заменяет изменяемые поля товара. Отсутствующее описание очищается.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: Товар обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          description: Некорректные данные товара.
+        '404':
+          description: Товар не найден.
+    delete:
+      tags: [Products]
+      operationId: deleteProduct
+      summary: Архивировать товар
+      description: Переводит товар в статус ARCHIVED и сохраняет запись в каталоге.
+      responses:
+        '204':
+          description: Товар архивирован.
+        '400':
+          description: Некорректный ID товара.
+        '404':
+          description: Товар не найден.
+components:
+  schemas:
+    ProductStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, ARCHIVED]
+    ProductCreate:
+      type: object
+      required: [name, price, stock, category, status]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+          maxLength: 4000
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 9999999999.99
+          multipleOf: 0.01
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+    ProductUpdate:
+      type: object
+      required: [name, price, stock, category, status]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+          maxLength: 4000
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 9999999999.99
+          multipleOf: 0.01
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+    ProductResponse:
+      type: object
+      required: [id, name, price, stock, category, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+          maxLength: 4000
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 9999999999.99
+          multipleOf: 0.01
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ProductPage:
+      type: object
+      required: [items, totalElements, page, size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
