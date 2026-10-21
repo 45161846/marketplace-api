@@ -237,8 +237,8 @@ abstract class OrderData {
     protected fun product(price: String = "10.00", stock: Int = 10, status: String = "ACTIVE"): UUID {
         val id = UUID.randomUUID()
         db.update(
-            "INSERT INTO products (id, name, price, stock, category, status) VALUES (?, 'Book', ?, ?, 'Books', ?)",
-            id, BigDecimal(price), stock, status
+            "INSERT INTO products (id, name, price, stock, category, status, seller_id) VALUES (?, 'Book', ?, ?, 'Books', ?, ?)",
+            id, BigDecimal(price), stock, status, user("SELLER").id
         )
         return id
     }
