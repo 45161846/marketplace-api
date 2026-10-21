@@ -1,10 +1,13 @@
 package market
 
+import market.auth.Jwt
+
 import com.fasterxml.jackson.databind.ObjectMapper
 import market.model.ErrorResponse
 import market.model.ProductResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -15,19 +18,37 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.http.HttpEntity
+import org.springframework.http.client.ClientHttpRequestInterceptor
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import java.math.BigDecimal
+import java.time.Duration
+import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class ValidationTest @Autowired constructor(private val http: TestRestTemplate, private val db: JdbcTemplate) {
+class ValidationTest @Autowired constructor(private val http: TestRestTemplate, private val db: JdbcTemplate, private val jwt: Jwt) {
+    private lateinit var auth: ClientHttpRequestInterceptor
+
+    @BeforeEach
+    fun login() {
+        val id = UUID.randomUUID()
+        db.update("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, 'hash', 'ADMIN')", id, "$id@test.local")
+        val token = jwt.issue(Actor(id, "ADMIN"), "access", Duration.ofMinutes(5))
+        auth = ClientHttpRequestInterceptor { req, body, chain ->
+            req.headers.setBearerAuth(token)
+            chain.execute(req, body)
+        }
+        http.restTemplate.interceptors.add(auth)
+    }
+
     @AfterEach
     fun clear() {
-        db.execute("TRUNCATE products CASCADE")
+        http.restTemplate.interceptors.remove(auth)
+        db.execute("TRUNCATE users, products CASCADE")
     }
 
     @ParameterizedTest(name = "{index}: {0}")

@@ -1,5 +1,7 @@
 package market
 
+import market.auth.Jwt
+
 import com.fasterxml.jackson.databind.JsonNode
 import market.model.ProductCreate
 import market.model.ProductPage
@@ -8,23 +10,41 @@ import market.model.ProductStatus
 import market.model.ProductUpdate
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
 import org.springframework.http.HttpEntity
+import org.springframework.http.client.ClientHttpRequestInterceptor
 import org.springframework.http.HttpMethod
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import java.math.BigDecimal
+import java.time.Duration
 import java.util.UUID
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-class ProductTest @Autowired constructor(private val http: TestRestTemplate, private val db: JdbcTemplate) {
+class ProductTest @Autowired constructor(private val http: TestRestTemplate, private val db: JdbcTemplate, private val jwt: Jwt) {
+    private lateinit var auth: ClientHttpRequestInterceptor
+
+    @BeforeEach
+    fun login() {
+        val id = UUID.randomUUID()
+        db.update("INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, 'hash', 'ADMIN')", id, "$id@test.local")
+        val token = jwt.issue(Actor(id, "ADMIN"), "access", Duration.ofMinutes(5))
+        auth = ClientHttpRequestInterceptor { req, body, chain ->
+            req.headers.setBearerAuth(token)
+            chain.execute(req, body)
+        }
+        http.restTemplate.interceptors.add(auth)
+    }
+
     @AfterEach
     fun clear() {
-        db.execute("TRUNCATE products CASCADE")
+        http.restTemplate.interceptors.remove(auth)
+        db.execute("TRUNCATE users, products CASCADE")
     }
 
     @Test
