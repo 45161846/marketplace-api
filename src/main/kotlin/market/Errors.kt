@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.validation.BindException
+import org.springframework.web.HttpMediaTypeNotSupportedException
+import org.springframework.web.HttpRequestMethodNotSupportedException
+import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
@@ -32,12 +35,21 @@ class Errors {
     })
 
     @ExceptionHandler(HandlerMethodValidationException::class)
-    fun method(ex: HandlerMethodValidationException) = invalid(ex.allValidationResults.flatMap { result ->
+    fun method(ex: HandlerMethodValidationException) = invalid(ex.parameterValidationResults.flatMap { result ->
         result.resolvableErrors.map { field(result.methodParameter.parameterName ?: "request", it.defaultMessage.orEmpty()) }
     })
 
     @ExceptionHandler(MethodArgumentTypeMismatchException::class)
     fun argument(ex: MethodArgumentTypeMismatchException) = invalid(listOf(field(ex.name, "Неверный тип или формат")))
+
+    @ExceptionHandler(MissingServletRequestParameterException::class)
+    fun absent(ex: MissingServletRequestParameterException) = invalid(listOf(field(ex.parameterName, "Обязательный параметр")))
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
+    fun method() = fault(Fault("METHOD_NOT_ALLOWED", 405, "Метод не поддерживается"))
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException::class)
+    fun media() = fault(Fault("UNSUPPORTED_MEDIA_TYPE", 415, "Ожидается application/json"))
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun json(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
