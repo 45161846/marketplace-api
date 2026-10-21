@@ -20,6 +20,7 @@ paths:
       tags: [Products]
       operationId: createProduct
       summary: Создать товар
+      description: "SELLER создаёт товар только для себя. ADMIN может указать seller_id пользователя с ролью SELLER или ADMIN; без seller_id владельцем будет текущий пользователь. USER доступ запрещён."
       requestBody:
         required: true
         content:
@@ -39,11 +40,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
     get:
       tags: [Products]
       operationId: listProducts
       summary: Получить список товаров
-      description: Без фильтра возвращаются товары всех статусов. Сортировка по времени создания и ID.
+      description: "USER, SELLER и ADMIN могут получить все товары. Без фильтра возвращаются товары всех статусов. Сортировка по времени создания и ID."
       parameters:
         - name: page
           in: query
@@ -87,6 +94,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/HttpError'
   /products/{id}:
     parameters:
       - name: id
@@ -100,6 +111,7 @@ paths:
       tags: [Products]
       operationId: getProduct
       summary: Получить товар
+      description: "USER, SELLER и ADMIN могут получить любой товар."
       responses:
         '200':
           description: Товар найден.
@@ -108,18 +120,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductResponse'
         '400':
-          description: Некорректный ID товара.
+          description: "VALIDATION_ERROR. Некорректный ID товара."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: PRODUCT_NOT_FOUND. Товар не найден.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/HttpError'
     put:
       tags: [Products]
       operationId: updateProduct
       summary: Обновить товар
-      description: Полностью заменяет изменяемые поля товара. Отсутствующее описание очищается.
+      description: "SELLER может изменять только свои товары, ADMIN любые. USER доступ запрещён. Владелец товара не меняется. Полностью заменяет изменяемые поля товара. Отсутствующее описание очищается."
       requestBody:
         required: true
         content:
@@ -145,29 +165,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
     delete:
       tags: [Products]
       operationId: deleteProduct
       summary: Архивировать товар
-      description: Переводит товар в статус ARCHIVED и сохраняет запись в каталоге.
+      description: "SELLER может архивировать только свои товары, ADMIN любые. USER доступ запрещён. Переводит товар в статус ARCHIVED и сохраняет запись в каталоге."
       responses:
         '204':
           description: Товар архивирован.
         '400':
-          description: Некорректный ID товара.
+          description: "VALIDATION_ERROR. Некорректный ID товара."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: PRODUCT_NOT_FOUND. Товар не найден.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
   /orders:
     post:
       tags:
       - Orders
       operationId: createOrder
       summary: Создать заказ
-      description: Резервирует товары и сохраняет текущие цены. Пользователь может иметь один активный заказ.
+      description: "USER и ADMIN могут создать заказ для себя. SELLER доступ запрещён. Резервирует товары и сохраняет текущие цены. Пользователь может иметь один активный заказ."
       requestBody:
         required: true
         content:
@@ -211,6 +247,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
   /orders/{id}:
     parameters:
     - name: id
@@ -224,6 +266,7 @@ paths:
       - Orders
       operationId: getOrder
       summary: Получить заказ
+      description: "USER может получить только свой заказ, ADMIN любой. SELLER доступ запрещён."
       responses:
         '200':
           description: Заказ найден.
@@ -238,7 +281,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: ORDER_OWNERSHIP_VIOLATION.
+          description: "ACCESS_DENIED или ORDER_OWNERSHIP_VIOLATION."
           content:
             application/json:
               schema:
@@ -249,14 +292,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/HttpError'
     put:
       tags:
       - Orders
       operationId: updateOrder
       summary: Обновить заказ
-      description: Заменяет позиции заказа в состоянии CREATED. Существующие позиции сохраняют цену, новые получают текущую
-        цену товара. Промокод пересчитывается; при сумме ниже минимальной он снимается с возвратом использования. Истёкший или
-        отключённый промокод вызывает PROMO_CODE_INVALID и откат операции.
+      description: "USER может изменить только свой заказ, ADMIN любой. SELLER доступ запрещён. Заменяет позиции заказа в состоянии CREATED. Существующие позиции сохраняют цену, новые получают текущую цену товара. Промокод пересчитывается; при сумме ниже минимальной он снимается с возвратом использования. Истёкший или отключённый промокод вызывает PROMO_CODE_INVALID и откат операции."
       requestBody:
         required: true
         content:
@@ -277,7 +322,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: ORDER_OWNERSHIP_VIOLATION.
+          description: "ACCESS_DENIED или ORDER_OWNERSHIP_VIOLATION."
           content:
             application/json:
               schema:
@@ -306,6 +351,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/HttpError'
   /orders/{id}/cancel:
     parameters:
     - name: id
@@ -319,7 +368,7 @@ paths:
       - Orders
       operationId: cancelOrder
       summary: Отменить заказ
-      description: Из CREATED и PAYMENT_PENDING возвращает остатки и использование промокода, устанавливает CANCELED.
+      description: "USER может отменить только свой заказ, ADMIN любой. SELLER доступ запрещён. Из CREATED и PAYMENT_PENDING возвращает остатки и использование промокода, устанавливает CANCELED."
       responses:
         '200':
           description: Заказ отменён.
@@ -334,7 +383,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: ORDER_OWNERSHIP_VIOLATION.
+          description: "ACCESS_DENIED или ORDER_OWNERSHIP_VIOLATION."
           content:
             application/json:
               schema:
@@ -351,6 +400,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        default:
+          $ref: '#/components/responses/HttpError'
   /orders/{id}/status:
     parameters:
     - name: id
@@ -364,8 +417,7 @@ paths:
       - Orders
       operationId: changeStatus
       summary: Изменить статус заказа
-      description: Последовательно переводит CREATED, PAYMENT_PENDING, PAID, SHIPPED, COMPLETED. Отмена выполняется отдельным
-        методом.
+      description: "Доступно только ADMIN. USER и SELLER доступ запрещён. Последовательно переводит CREATED, PAYMENT_PENDING, PAID, SHIPPED, COMPLETED. Отмена выполняется отдельным методом."
       requestBody:
         required: true
         content:
@@ -397,13 +449,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
   /promo-codes:
     post:
       tags:
       - Promos
       operationId: createPromo
       summary: Создать промокод
-      description: Процентная скидка выше 70% не уменьшает сумму заказа, но расходует использование промокода.
+      description: "Доступно SELLER и ADMIN. USER доступ запрещён. Процентная скидка выше 70% не уменьшает сумму заказа, но расходует использование промокода."
       requestBody:
         required: true
         content:
@@ -423,13 +481,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        default:
+          $ref: '#/components/responses/HttpError'
   /auth/register:
     post:
       tags:
       - Auth
       operationId: register
       summary: Зарегистрировать пользователя
-      description: Создаёт пользователя с ролью USER. Email приводится к нижнему регистру.
+      description: "Доступно без авторизации. Создаёт пользователя с ролью USER. Email приводится к нижнему регистру."
       security: []
       requestBody:
         required: true
@@ -450,12 +514,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        default:
+          $ref: '#/components/responses/HttpError'
   /auth/login:
     post:
       tags:
       - Auth
       operationId: login
       summary: Получить токены
+      description: "Доступно без авторизации."
       security: []
       requestBody:
         required: true
@@ -482,13 +549,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        default:
+          $ref: '#/components/responses/HttpError'
   /auth/refresh:
     post:
       tags:
       - Auth
       operationId: refresh
       summary: Обновить токены
-      description: Выдаёт новую пару токенов и отзывает переданный refresh token.
+      description: "Доступно без access token. Выдаёт новую пару токенов и отзывает переданный refresh token."
       security: []
       requestBody:
         required: true
@@ -515,6 +584,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        default:
+          $ref: '#/components/responses/HttpError'
 components:
   securitySchemes:
     bearerAuth:
@@ -527,6 +598,7 @@ components:
       enum: [ACTIVE, INACTIVE, ARCHIVED]
     ProductCreate:
       type: object
+      additionalProperties: false
       required:
       - name
       - price
@@ -567,6 +639,7 @@ components:
             пользователь.
     ProductUpdate:
       type: object
+      additionalProperties: false
       required: [name, price, stock, category, status]
       properties:
         name:
@@ -596,6 +669,7 @@ components:
           $ref: '#/components/schemas/ProductStatus'
     ProductResponse:
       type: object
+      additionalProperties: false
       required:
       - id
       - name
@@ -647,6 +721,7 @@ components:
           description: ID владельца товара.
     ProductPage:
       type: object
+      additionalProperties: false
       required: [items, totalElements, page, size]
       properties:
         items:
@@ -668,6 +743,7 @@ components:
           maximum: 100
     ErrorResponse:
       type: object
+      additionalProperties: false
       required: [error_code, message]
       properties:
         error_code:
@@ -688,6 +764,7 @@ components:
       - CANCELED
     OrderLine:
       type: object
+      additionalProperties: false
       required:
       - product_id
       - quantity
@@ -702,6 +779,7 @@ components:
           maximum: 999
     OrderCreate:
       type: object
+      additionalProperties: false
       required:
       - items
       properties:
@@ -718,6 +796,7 @@ components:
           pattern: ^[A-Z0-9_]{4,20}$
     OrderUpdate:
       type: object
+      additionalProperties: false
       required:
       - items
       properties:
@@ -730,6 +809,7 @@ components:
             $ref: '#/components/schemas/OrderLine'
     OrderState:
       type: object
+      additionalProperties: false
       required:
       - status
       properties:
@@ -737,6 +817,7 @@ components:
           $ref: '#/components/schemas/OrderStatus'
     OrderItem:
       type: object
+      additionalProperties: false
       required:
       - id
       - product_id
@@ -762,6 +843,7 @@ components:
           multipleOf: 0.01
     OrderResponse:
       type: object
+      additionalProperties: false
       required:
       - id
       - user_id
@@ -815,6 +897,7 @@ components:
       - FIXED_AMOUNT
     PromoCreate:
       type: object
+      additionalProperties: false
       required:
       - code
       - discount_type
@@ -860,6 +943,7 @@ components:
           default: true
     PromoResponse:
       type: object
+      additionalProperties: false
       required:
       - id
       - code
@@ -1039,7 +1123,7 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     Ownership:
-      description: ORDER_OWNERSHIP_VIOLATION (403). Заказ принадлежит другому пользователю.
+      description: "ACCESS_DENIED или ORDER_OWNERSHIP_VIOLATION (403). Заказ принадлежит другому пользователю."
       content:
         application/json:
           schema:
@@ -1052,6 +1136,24 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Internal:
       description: INTERNAL_ERROR (500). Внутренняя ошибка.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: "TOKEN_INVALID или TOKEN_EXPIRED (401). Bearer токен отсутствует, недействителен или истёк."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: "ACCESS_DENIED (403). Недостаточно прав для операции."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    HttpError:
+      description: "NOT_FOUND (404), METHOD_NOT_ALLOWED (405), UNSUPPORTED_MEDIA_TYPE (415) или INTERNAL_ERROR (500)."
       content:
         application/json:
           schema:
