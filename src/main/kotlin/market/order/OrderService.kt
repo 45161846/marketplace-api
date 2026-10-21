@@ -209,7 +209,7 @@ class OrderService(
     }
 
     private fun sum(items: List<OrderItem>): BigDecimal =
-        money(items.fold(zero) { total, item -> total + item.priceAtOrder * item.quantity.toBigDecimal() })
+        items.fold(zero) { total, item -> total + item.priceAtOrder * item.quantity.toBigDecimal() }
 
     private fun valid(promo: PromoResponse, fresh: Boolean) {
         val now = clock.instant()
