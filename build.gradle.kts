@@ -1,4 +1,5 @@
 plugins {
+    id("org.openapi.generator") version "7.14.0"
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
     id("org.springframework.boot") version "3.5.16"
@@ -34,4 +35,40 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+openApiGenerate {
+    generatorName.set("kotlin-spring")
+    inputSpec.set("$rootDir/src/main/resources/openapi/api.yaml")
+    outputDir.set(layout.buildDirectory.dir("generated").get().asFile.path)
+    apiPackage.set("market.api")
+    modelPackage.set("market.model")
+    configOptions.set(
+        mapOf(
+            "interfaceOnly" to "true",
+            "skipDefaultInterface" to "true",
+            "useSpringBoot3" to "true",
+            "useBeanValidation" to "true",
+            "useTags" to "true",
+            "modelMutable" to "false",
+            "enumPropertyNaming" to "original",
+            "annotationLibrary" to "none",
+            "documentationProvider" to "none",
+            "exceptionHandler" to "false"
+        )
+    )
+    typeMappings.set(mapOf("number+decimal" to "BigDecimal"))
+    globalProperties.set(mapOf("apis" to "", "models" to ""))
+}
+
+kotlin.sourceSets.main {
+    kotlin.srcDir(layout.buildDirectory.dir("generated/src/main/kotlin"))
+}
+
+tasks.compileKotlin {
+    dependsOn(tasks.openApiGenerate)
+}
+
+openApiValidate {
+    inputSpec.set("$rootDir/src/main/resources/openapi/api.yaml")
 }
