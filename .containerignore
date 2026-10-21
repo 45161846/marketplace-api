@@ -1,0 +1,11 @@
+.env
+.env.*
+.git
+.local
+build
+.gradle
+.kotlin
+.idea
+.vscode
+*.iml
+.DS_Store
