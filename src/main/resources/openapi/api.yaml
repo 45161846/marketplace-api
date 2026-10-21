@@ -527,7 +527,12 @@ components:
       enum: [ACTIVE, INACTIVE, ARCHIVED]
     ProductCreate:
       type: object
-      required: [name, price, stock, category, status]
+      required:
+      - name
+      - price
+      - stock
+      - category
+      - status
       properties:
         name:
           type: string
@@ -543,7 +548,7 @@ components:
           minimum: 0.01
           maximum: 9999999999.99
           multipleOf: 0.01
-          x-field-extra-annotation: "@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)"
+          x-field-extra-annotation: '@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)'
         stock:
           type: integer
           format: int32
@@ -554,6 +559,12 @@ components:
           maxLength: 100
         status:
           $ref: '#/components/schemas/ProductStatus'
+        seller_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Владелец товара. SELLER может указать только себя, ADMIN может выбрать SELLER или ADMIN. По умолчанию текущий
+            пользователь.
     ProductUpdate:
       type: object
       required: [name, price, stock, category, status]
@@ -585,7 +596,16 @@ components:
           $ref: '#/components/schemas/ProductStatus'
     ProductResponse:
       type: object
-      required: [id, name, price, stock, category, status, created_at, updated_at]
+      required:
+      - id
+      - name
+      - price
+      - stock
+      - category
+      - status
+      - created_at
+      - updated_at
+      - seller_id
       properties:
         id:
           type: string
@@ -604,7 +624,7 @@ components:
           minimum: 0.01
           maximum: 9999999999.99
           multipleOf: 0.01
-          x-field-extra-annotation: "@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)"
+          x-field-extra-annotation: '@get:jakarta.validation.constraints.Digits(integer = 10, fraction = 2)'
         stock:
           type: integer
           format: int32
@@ -621,6 +641,10 @@ components:
         updated_at:
           type: string
           format: date-time
+        seller_id:
+          type: string
+          format: uuid
+          description: ID владельца товара.
     ProductPage:
       type: object
       required: [items, totalElements, page, size]

@@ -22,17 +22,23 @@ class ProductRepo(private val db: JdbcTemplate) {
             status = ProductStatus.valueOf(rs.getString("status")),
             createdAt = rs.getObject("created_at", OffsetDateTime::class.java),
             updatedAt = rs.getObject("updated_at", OffsetDateTime::class.java),
-            description = rs.getString("description")
+            description = rs.getString("description"),
+            sellerId = rs.getObject("seller_id", UUID::class.java)
         )
     }
 
-    fun create(body: ProductCreate): ProductResponse = db.queryForObject(
+    fun create(body: ProductCreate, owner: UUID): ProductResponse = db.queryForObject(
         """
-        INSERT INTO products (name, description, price, stock, category, status)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, description, price, stock, category, status, seller_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         RETURNING *
         """.trimIndent(),
-        row, body.name, body.description, body.price, body.stock, body.category, body.status.name
+        row, body.name, body.description, body.price, body.stock, body.category, body.status.name, owner
+    )!!
+
+    fun owner(id: UUID): Boolean = db.queryForObject(
+        "SELECT EXISTS (SELECT 1 FROM users WHERE id = ? AND role IN ('SELLER', 'ADMIN'))",
+        Boolean::class.java, id
     )!!
 
     fun find(id: UUID, lock: Boolean = false): ProductResponse? {

@@ -1,5 +1,7 @@
 package market.product
 
+import market.Actor
+import market.Caller
 import market.Fault
 import market.api.ProductsApi
 import market.model.ProductCreate
@@ -14,10 +16,19 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 @RestController
-class Products(private val repo: ProductRepo) : ProductsApi {
+class Products(private val repo: ProductRepo, private val caller: Caller) : ProductsApi {
     @Transactional
-    override fun createProduct(body: ProductCreate): ResponseEntity<ProductResponse> =
-        ResponseEntity.status(201).body(repo.create(body))
+    override fun createProduct(body: ProductCreate): ResponseEntity<ProductResponse> {
+        val actor = writer()
+        val owner = body.sellerId ?: actor.id
+        if (actor.role == "SELLER" && owner != actor.id) denied()
+        if (!repo.owner(owner)) {
+            throw Fault("VALIDATION_ERROR", 400, "Владелец должен быть продавцом или администратором", mapOf(
+                "fields" to listOf(mapOf("field" to "seller_id", "message" to "Продавец или администратор не найден"))
+            ))
+        }
+        return ResponseEntity.status(201).body(repo.create(body, owner))
+    }
 
     @Transactional(readOnly = true)
     override fun getProduct(id: UUID): ResponseEntity<ProductResponse> = ResponseEntity.ok(find(id))
@@ -34,17 +45,31 @@ class Products(private val repo: ProductRepo) : ProductsApi {
 
     @Transactional
     override fun updateProduct(id: UUID, body: ProductUpdate): ResponseEntity<ProductResponse> {
-        find(id, true)
+        own(id)
         return ResponseEntity.ok(repo.update(id, body))
     }
 
     @Transactional
     override fun deleteProduct(id: UUID): ResponseEntity<Unit> {
-        find(id, true)
+        own(id)
         repo.archive(id)
         return ResponseEntity.noContent().build()
     }
 
     private fun find(id: UUID, lock: Boolean = false): ProductResponse =
         repo.find(id, lock) ?: throw Fault("PRODUCT_NOT_FOUND", 404, "Товар не найден")
+
+    private fun writer(): Actor {
+        val actor = caller.get()
+        if (actor.role !in setOf("SELLER", "ADMIN")) denied()
+        return actor
+    }
+
+    private fun own(id: UUID) {
+        val actor = writer()
+        val item = find(id, true)
+        if (actor.role == "SELLER" && item.sellerId != actor.id) denied()
+    }
+
+    private fun denied(): Nothing = throw Fault("ACCESS_DENIED", 403, "Недостаточно прав")
 }
