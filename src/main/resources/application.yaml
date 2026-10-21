@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   main:
     banner-mode: off
   application:
@@ -23,3 +25,6 @@ logging:
 
 order:
   interval-minutes: ${ORDER_INTERVAL_MINUTES:1}
+
+jwt:
+  secret: ${JWT_SECRET}

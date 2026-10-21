@@ -3,3 +3,6 @@ spring:
     url: ${TEST_DB_URL:jdbc:postgresql://127.0.0.1:55432/marketplace_test}
     username: ${DB_USER:marketplace}
     password: ${DB_PASSWORD:marketplace}
+
+jwt:
+  secret: test-signing-secret-used-only-in-tests-123456789
