@@ -103,6 +103,36 @@ class OrderService(
         return repo.find(id)!!
     }
 
+    @Transactional
+    fun cancel(actor: Actor, id: UUID): OrderResponse {
+        allow(actor)
+        val order = locked(actor, id)
+        if (order.status !in listOf(OrderStatus.CREATED, OrderStatus.PAYMENT_PENDING)) state()
+        restore(order.items, repo.stocks(order.items.map { it.productId }))
+        order.promoCodeId?.let {
+            val promo = requireNotNull(promos.find(it))
+            promos.use(promo.id, -1)
+        }
+        repo.status(id, OrderStatus.CANCELED)
+        return repo.find(id)!!
+    }
+
+    @Transactional
+    fun status(actor: Actor, id: UUID, body: OrderState): OrderResponse {
+        if (actor.role != "ADMIN") denied()
+        val order = locked(actor, id)
+        val next = when (order.status) {
+            OrderStatus.CREATED -> OrderStatus.PAYMENT_PENDING
+            OrderStatus.PAYMENT_PENDING -> OrderStatus.PAID
+            OrderStatus.PAID -> OrderStatus.SHIPPED
+            OrderStatus.SHIPPED -> OrderStatus.COMPLETED
+            else -> state()
+        }
+        if (body.status != next) state()
+        repo.status(id, next)
+        return repo.find(id)!!
+    }
+
     private fun locked(actor: Actor, id: UUID): OrderResponse {
         val user = repo.owner(id) ?: missing()
         owner(actor, user)
