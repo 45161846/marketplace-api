@@ -98,6 +98,21 @@ class ProductTest @Autowired constructor(private val http: TestRestTemplate, pri
         assertThat(read.status).isEqualTo(ProductStatus.ARCHIVED)
     }
 
+    @Test
+    fun `missing product returns not found`() {
+        val id = UUID.randomUUID()
+        val read = http.getForEntity("/products/$id", JsonNode::class.java)
+        assertThat(read.statusCode.value()).isEqualTo(404)
+        assertThat(read.body!!.get("error_code").asText()).isEqualTo("PRODUCT_NOT_FOUND")
+        val body = ProductUpdate("Pen", BigDecimal("1.00"), 1, "Office", ProductStatus.ACTIVE)
+        val edit = http.exchange("/products/$id", HttpMethod.PUT, HttpEntity(body), JsonNode::class.java)
+        assertThat(edit.statusCode.value()).isEqualTo(404)
+        assertThat(edit.body!!.get("error_code").asText()).isEqualTo("PRODUCT_NOT_FOUND")
+        val remove = http.exchange("/products/$id", HttpMethod.DELETE, HttpEntity.EMPTY, JsonNode::class.java)
+        assertThat(remove.statusCode.value()).isEqualTo(404)
+        assertThat(remove.body!!.get("error_code").asText()).isEqualTo("PRODUCT_NOT_FOUND")
+    }
+
     private fun create(body: ProductCreate = data()): ProductResponse =
         http.postForEntity("/products", body, ProductResponse::class.java).body!!
 
