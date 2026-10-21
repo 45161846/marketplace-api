@@ -73,6 +73,36 @@ class OrderService(
         return order
     }
 
+    @Transactional
+    fun update(actor: Actor, id: UUID, body: OrderUpdate): OrderResponse {
+        allow(actor)
+        OrderInput.check(body.items)
+        val order = locked(actor, id)
+        if (order.status != OrderStatus.CREATED) state()
+        limit(actor.id, "UPDATE_ORDER")
+        val ids = order.items.map { it.productId } + body.items.map { it.productId }
+        val stocks = restore(order.items, repo.stocks(ids))
+        catalog(body.items, stocks)
+        reserve(body.items, stocks)
+        val items = snapshot(body.items, stocks, order.items)
+        val sum = sum(items)
+        var promo = order.promoCodeId?.let { requireNotNull(promos.find(it)) }
+        var cut = zero
+        if (promo != null) {
+            valid(promo, false)
+            if (sum < promo.minOrderAmount) {
+                promos.use(promo.id, -1)
+                promo = null
+            } else {
+                cut = discount(sum, promo)
+            }
+        }
+        repo.update(id, money(sum - cut), cut, promo?.id)
+        repo.items(id, items)
+        record(actor.id, "UPDATE_ORDER")
+        return repo.find(id)!!
+    }
+
     private fun locked(actor: Actor, id: UUID): OrderResponse {
         val user = repo.owner(id) ?: missing()
         owner(actor, user)
